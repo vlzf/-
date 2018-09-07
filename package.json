@@ -2,7 +2,7 @@
   "name": "wc",
   "version": "1.0.0",
   "description": "nodejs 编写命令行",
-  "main": "wc.js",
+  "main": "main.js",
   "scripts": {
     "test": ""
   },
@@ -12,7 +12,7 @@
   "author": "lzf",
   "license": "ISC",
   "bin": {
-    "wc": "wc.js"
+    "wc": "main.js"
   },
   "dependencies": {
     "fs": "0.0.1-security",
