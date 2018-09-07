@@ -1,0 +1,21 @@
+{
+  "name": "wc",
+  "version": "1.0.0",
+  "description": "nodejs 编写命令行",
+  "main": "wc.js",
+  "scripts": {
+    "test": ""
+  },
+  "keywords": [
+    "123"
+  ],
+  "author": "lzf",
+  "license": "ISC",
+  "bin": {
+    "wc": "wc.js"
+  },
+  "dependencies": {
+    "fs": "0.0.1-security",
+    "path": "^0.12.7"
+  }
+}
