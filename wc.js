@@ -4,8 +4,8 @@ const FileData = require('./lib/filedata')
 // FileData.readUrl('./main.js', { outOrder: ['-c', '-w'], readOrder: [] })
 // FileData.readUrl(__dirname, { outOrder: ['-c', '-w'], readOrder: [] })
 
-order(function(url, input, output){
-  FileData.readUrl(url, { outOrder: output, readOrder: input })
+order(function(url, read, output){
+  FileData.readUrl(url, { outOrder: output, readOrder: read })
 })
 
 /**
