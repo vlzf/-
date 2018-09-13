@@ -15,14 +15,14 @@ wc.exe 是一个常见的工具，它能统计文本文件的字符数、单词�
 wc.exe [parameter] [file_name]
 ```
 
-- 基本功能列表：
+- 基本功能列表：（完成）
 ```text
 wc.exe -c file.c     //返回文件 file.c 的字符数
 wc.exe -w file.c    //返回文件 file.c 的词的数目  
 wc.exe -l file.c      //返回文件 file.c 的行数
 ```
 
-- 扩展功能：
+- 扩展功能：（完成）
 ```text
 -s   递归处理目录下符合条件的文件。
 -a   返回更复杂的数据（代码行 / 空行 / 注释行）。
@@ -41,6 +41,9 @@ wc.exe -l file.c      //返回文件 file.c 的行数
 wc.exe -s -a *.c
 ```
 返回当前目录及子目录中所有*.c 文件的代码行数、空行数、注释行数。
+
+高级功能：（未完成）
+- -x 参数。这个参数单独使用。如果命令行有这个参数，则程序会显示图形界面，用户可以通过界面选取单个文件，程序就会显示文件的字符数、行数等全部统计信息。
 
 ***
 
@@ -86,6 +89,216 @@ wc.exe -s -a *.c
     - 由于输入的文件路径可能是相对路径，也可能是绝对路径。要统一转化成绝对路径。
 
 ***
+
+### 关键代码
+
+1. 入口文件：wc.js
+```js
+const order = require('./lib/order')
+const FileData = require('./lib/filedata')
+order(function(url, read, output){
+  FileData.readUrl(url, { outOrder: output, readOrder: read })
+})
+```
+该文件引入了 `order` 函数和 `FileData` 类。在 `order` 函数的回调函数中调用了 `FileData` 类的静态方法 `readUrl`。
+
+***
+
+2. 命令分类函数所在的文件：order.js
+```js
+function order(callback){
+  let params = process.argv.slice(2), // 拿到控制台输入的命令
+      length = params.length, 
+      read = [], output = [], url = []
+  for(let i = 0; i < length; i++){
+    let value = params[i]
+    switch(value) { // 命令分类
+      case '-c': output.push(value);break
+      case '-w': output.push(value);break
+      case '-l': output.push(value);break
+      case '-a': output.push(value);break
+      case '-s': read.push(value);break
+      default: url.push(value); break
+    }
+  }
+  callback(url, read, output) // 调用回调函数
+}
+
+module.exports = order // 暴露函数
+```
+
+***
+
+3. 处理文件的函数在 filedata.js 下：
+```js
+class FileData {
+  constructor(url, data) {
+    let array = url.replace(/\//g, '\\').split('\\')
+    this.url = url // 完整路径
+    this.name = array[array.length-1] // 文件名
+    this.dir = --array.length && array.join('\\') // 文件所在目录
+    this.message = [] // 需要输出的信息
+    this.handler(data) // 选择性处理信息
+  }
+
+  handler(data){ // 选择性处理数据
+    if(typeof data !== 'string') return
+    let t = this
+    FileData.outOrder.forEach((e)=>{
+      switch(e) { // 选择处理方式
+        case '-c': this.charCount(data);break
+        case '-w': this.wordCount(data);break
+        case '-l': this.rowCount(data);break
+        case '-a': this.rowComplexCount(data);break
+      }
+    })
+    this.output() // 输出信息
+  }
+
+  charCount(string){ // 计算字符数
+    let count = string.replace(/( |\n)/g,'').length
+    this.message.push({
+      name: '字符数',
+      text: count
+    })
+    return count
+  }
+
+  wordCount(string){ // 计算词数
+    let wordCount = 0
+
+    string.replace(
+      /(\b[a-zA-Z0-9_]+\b)|[\u4e00-\u9fa5]/g,
+      e => { 
+        wordCount++
+        return e 
+      }
+    ) // 匹配单词边界
+
+    this.message.push({
+      name: '词数',
+      text: wordCount
+    })
+
+    return wordCount
+  }
+
+  rowCount(string){ // 计算行数
+    let rowCount = string.length - string.replace(/\n/g, '').length + 1
+    this.message.push({
+      name: '行数',
+      text: rowCount
+    })
+    return rowCount
+  }
+
+  rowComplexCount(string){ // 计算空行/注释行/代码行
+    let emptyRow = 0,
+        explainRow = 0,
+        codeRow = 0,
+
+        length = string.length,
+        i = 0, j = -1, 
+
+        lastChat = '',
+        chat = '',
+        target = '',
+        targetList = ['`', `'`, `"`, `/*`, `*/`, `//`, '\n'],
+        rowChats = ''
+
+    while(i < length){
+      lastChat = chat
+      chat = string[i]
+      rowChats += chat
+      
+      if(chat === targetList[0]) {
+        if(!target) target = targetList[0]
+        else if(target === targetList[0]) target = ''
+      } 
+      else if(chat === targetList[1]) {
+        if(!target) target = targetList[1]
+        else if(target === targetList[1]) target = ''
+      }
+      else if(chat === targetList[2]) {
+        if(!target) target = targetList[2]
+        else if(target === targetList[2]) target = ''
+      }
+      else if(lastChat + chat === targetList[3]) {
+        if(!target) {
+          target = targetList[3]
+          j = rowChats.length - 2
+        }
+      }
+      else if(lastChat + chat === targetList[4]) {
+        if(target === targetList[3]) target = ''
+      }
+      else if(lastChat + chat === targetList[5]) {
+        if(!target) {
+          target = targetList[5]
+          j = rowChats.length - 2
+        }
+      }
+      else if(chat === targetList[6]) {
+        if(rowChats.replace(/( |\n)/g, '').length < 2) {
+          ++emptyRow //空行
+        }
+        else if(target === targetList[1]) {
+          ++codeRow // 代码行
+        }
+        else if(target === targetList[3]) {
+          ++explainRow // 注释行
+        }
+        else {
+          if(j === -1){
+            ++codeRow // 代码行
+          } else {
+            let string1 = rowChats.slice(0, j).replace(/ /g, ''),
+                string2 = rowChats.slice(j).replace(/ /g, '')
+            if(string1.length < 2 || string1 === targetList[4]) ++explainRow // 注释行
+            else ++codeRow // 代码行
+          }
+
+          if(target === targetList[5]) target = ''
+        }
+        
+        rowChats = ''
+        j = -1
+      }
+      i++
+    }
+
+    this.message.push({
+      name: '空行',
+      text: emptyRow
+    }, {
+      name: '注释行',
+      text: explainRow
+    }, {
+      name: '代码行',
+      text: codeRow
+    })
+  }
+
+  output(){ // 控制塔输出信息
+    let message = this.message
+    console.log(`\n- 路径：${this.dir}`)
+    console.log(`- 文件名：${this.name}`)
+    this.message.forEach((e)=>{
+      console.log(`- ${e.name}：${e.text}`)
+    })
+  }
+}
+```
+这里定义了一个 `FileData` 类，其实例方法方法有：
+- `handler`: 选择性处理数据。
+- `charCount`: 计算字符数，命令 "-c"。
+- `wordCount`: 计算词数，命令 "-w"。
+- `rowCount`: 计算行数，命令 "-l"。
+- `rowComplexCount`: 计算空行/注释行/代码行，命令 "-a"。
+- `output`: 控制塔输出信息。
+
+***
+
 
 ## PSP
 | PSP2.1                                  | Personal Software Process Stages        | 预估耗时（分钟） | 实际耗时（分钟） |
