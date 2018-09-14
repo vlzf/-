@@ -497,24 +497,24 @@ FileData.wordCount = function(url, data){ // 统计文件字符
 ## 三、测试
 - 单个词测试
 
-![](./image/单个词测试.png)
+![](https://github.com/vlzf/ruangong/raw/master/image/%E5%8D%95%E4%B8%AA%E8%AF%8D%E6%B5%8B%E8%AF%95.png)
 
 - 单字符测试
 
-![](./image/单字符测试.png)
+![](https://github.com/vlzf/ruangong/raw/master/image/%E5%8D%95%E5%AD%97%E7%AC%A6%E6%B5%8B%E8%AF%95.png)
 
 - 空文件测试
 
-![](./image/空文件测试.png)
+![](https://github.com/vlzf/ruangong/raw/master/image/%E7%A9%BA%E6%96%87%E4%BB%B6%E6%B5%8B%E8%AF%95.png)
 
 - 源文件测试
 
-![](./image/源文件测试.png)
+![](https://github.com/vlzf/ruangong/raw/master/image/%E6%BA%90%E6%96%87%E4%BB%B6%E6%B5%8B%E8%AF%95.png)
 
 ***
 
 ## 四、界面功能
-![](./image/界面.png)
+![](https://github.com/vlzf/ruangong/raw/master/image/%E7%95%8C%E9%9D%A2.png)
 
 ***
 
