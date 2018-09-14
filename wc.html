@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>WC计数器</title>
+  <style>
+    .box {
+      width: 50%;
+      max-width: 1000px;
+      margin: 0 auto;
+      min-width: 500px;
+    }
+    header {
+      padding: 10px 0;
+    }
+    input {
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <header>WC字符计数器</header>
+    <input id="file" type="file">
+    <div id="text"></div>  
+  </div>
+  
+
+<script>
+var text, input
+
+function FileData(fileName, data) {
+  this.name = fileName
+  this.message = [] // 需要输出的信息
+  this.handler(data) // 选择性处理信息
+}
+
+FileData.prototype.handler = function(data){ // 选择性处理数据
+  if(typeof data !== 'string') return
+  this.charCount(data)
+  this.wordCount(data)
+  this.rowCount(data)
+  this.rowComplexCount(data)
+  this.output() // 输出信息
+}
+
+FileData.prototype.charCount = function(string){ // 计算字符数
+  let count = string.replace(/\s/g,'').length
+  this.message.push({
+    name: '字符数',
+    text: count
+  })
+  return count
+}
+
+FileData.prototype.wordCount = function(string){ // 计算词数
+  var wordCount = 0
+
+  string.replace(
+    /(\b[a-zA-Z0-9_]+\b)|[\u4e00-\u9fa5]/g,
+    function(e) { 
+      wordCount++
+      return e 
+    }
+  ) // 匹配单词边界
+
+  this.message.push({
+    name: '词数',
+    text: wordCount
+  })
+
+  return wordCount
+}
+
+FileData.prototype.rowCount = function(string){ // 计算行数
+  var rowCount = string.length - string.replace(/\n/g, '').length + (string.length?1:0)
+  this.message.push({
+    name: '行数',
+    text: rowCount
+  })
+  return rowCount
+}
+
+FileData.prototype.rowComplexCount = function(string){ // 计算空行/注释行/代码行
+  string += '\n'
+  let emptyRow = 0,
+      explainRow = 0,
+      codeRow = 0,
+
+      length = string.length,
+      i = 0, // 当前字符位置
+      j = -1, // 当行注释符位置
+
+      lastChat = '', // 上一个字符
+      chat = '', // 当前字符
+      target = '', // 表示处于字符串状态或者注释状态，用于判断 "/* + */" 等情况是字符串还是代码
+      targetList = ['`', `'`, `"`, `/*`, `*/`, `//`, '\n'], // 影响注释行判断的字符
+      rowChats = '' // 当行字符串
+
+  while(i < length){
+    lastChat = chat
+    chat = string[i]
+    rowChats += chat
+    
+    if(chat === targetList[0]) {
+      if(!target) target = targetList[0]
+      else if(target === targetList[0]) target = ''
+    } 
+    else if(chat === targetList[1]) {
+      if(!target) target = targetList[1]
+      else if(target === targetList[1]) target = ''
+    }
+    else if(chat === targetList[2]) {
+      if(!target) target = targetList[2]
+      else if(target === targetList[2]) target = ''
+    }
+    else if(lastChat + chat === targetList[3]) {
+      if(!target) {
+        target = targetList[3]
+        j = rowChats.length - 2
+      }
+    }
+    else if(lastChat + chat === targetList[4]) {
+      if(target === targetList[3]) target = ''
+    }
+    else if(lastChat + chat === targetList[5]) {
+      if(!target) {
+        target = targetList[5]
+        j = rowChats.length - 2
+      }
+    }
+    else if(chat === targetList[6]) {
+      if(rowChats.replace(/\s/g, '').length < 2) {
+        ++emptyRow //空行
+      }
+      else if(target === targetList[0]) {
+        ++codeRow // 代码行
+      }
+      else if(target === targetList[3] || rowChats.replace(/(\s)/g, '') === '*/') {
+        ++explainRow // 注释行
+      }
+      else {
+        if(j === -1){
+          ++codeRow // 代码行
+        } else {
+          let string1 = rowChats.slice(0, j).replace(/\s/g, ''),
+              string2 = rowChats.slice(j).replace(/\s/g, '')
+          if(string1.length < 2 || string1 === targetList[4]) ++explainRow // 注释行
+          else ++codeRow // 代码行
+        }
+
+        if(target === targetList[5]) target = ''
+      }
+      
+      rowChats = ''
+      j = -1
+    }
+    i++
+  }
+
+  this.message.push({
+    name: '空行',
+    text: emptyRow
+  }, {
+    name: '注释行',
+    text: explainRow
+  }, {
+    name: '代码行',
+    text: codeRow
+  })
+}
+
+FileData.prototype.output = function(){ // 控制塔输出信息
+  var message = this.message, str = ''
+  str = '<div>- 文件名：'+ this.name +'</div>'
+  this.message.forEach(function(e){
+    str += '<div>- ' + e.name + '：' + e.text +'</div>'
+  })
+  text.innerHTML = str
+}
+
+function readFile(file, callback){
+  if(!file) return
+  callback = callback || function(){}
+
+  var reader = new FileReader()
+  reader.onload = function(data){
+    console.log(data)
+    callback.call(file, this.result)
+  }
+  reader.readAsText(file)
+}
+
+window.onload = function(){
+  text = document.getElementById('text')
+  input = document.getElementById('file')
+  input.addEventListener('change', function(){
+    console.log([this])
+    readFile(this.files[0], function(data){
+      console.log(data)
+      new FileData(this.name, data)
+    })
+  })
+}
+</script>
+</body>
+</html>

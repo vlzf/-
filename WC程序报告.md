@@ -109,6 +109,7 @@ order(function(url, read, output){
 function order(callback){
   let params = process.argv.slice(2), // 拿到控制台输入的命令
       length = params.length, 
+      allOrder = false
       read = [], output = [], url = []
   for(let i = 0; i < length; i++){
     let value = params[i]
@@ -118,13 +119,15 @@ function order(callback){
       case '-l': output.push(value);break
       case '-a': output.push(value);break
       case '-s': read.push(value);break
+      case '-all': allOrder = true; break
       default: url.push(value); break
     }
   }
-  callback(url, read, output) // 调用回调函数
+  allOrder && (output = ['-c', '-w', 'l', '-a'])
+  callback(url, read, output)
 }
 
-module.exports = order // 暴露函数
+module.exports = order
 ```
 
 ***
@@ -156,7 +159,7 @@ class FileData {
   }
 
   charCount(string){ // 计算字符数
-    let count = string.replace(/( |\n)/g,'').length
+    let count = string.replace(/\s/g,'').length
     this.message.push({
       name: '字符数',
       text: count
@@ -184,7 +187,7 @@ class FileData {
   }
 
   rowCount(string){ // 计算行数
-    let rowCount = string.length - string.replace(/\n/g, '').length + 1
+    let rowCount = string.length - string.replace(/\n/g, '').length + (string.length?1:0)
     this.message.push({
       name: '行数',
       text: rowCount
@@ -193,6 +196,7 @@ class FileData {
   }
 
   rowComplexCount(string){ // 计算空行/注释行/代码行
+    string += '\n'
     let emptyRow = 0,
         explainRow = 0,
         codeRow = 0,
@@ -240,21 +244,21 @@ class FileData {
         }
       }
       else if(chat === targetList[6]) {
-        if(rowChats.replace(/( |\n)/g, '').length < 2) {
+        if(rowChats.replace(/\s/g, '').length < 2) {
           ++emptyRow //空行
         }
-        else if(target === targetList[1]) {
+        else if(target === targetList[0]) {
           ++codeRow // 代码行
         }
-        else if(target === targetList[3]) {
+        else if(target === targetList[3] || rowChats.replace(/(\s)/g, '') === '*/') {
           ++explainRow // 注释行
         }
         else {
           if(j === -1){
             ++codeRow // 代码行
           } else {
-            let string1 = rowChats.slice(0, j).replace(/ /g, ''),
-                string2 = rowChats.slice(j).replace(/ /g, '')
+            let string1 = rowChats.slice(0, j).replace(/\s/g, ''),
+                string2 = rowChats.slice(j).replace(/\s/g, '')
             if(string1.length < 2 || string1 === targetList[4]) ++explainRow // 注释行
             else ++codeRow // 代码行
           }
@@ -404,7 +408,7 @@ FileData.makeRegExp = function(string) {
     while(i--){
       let v = string[i].replace(/(\\|\/)/g, '\\\\')
               .replace(/\*/g, '[\\s\\S]*')
-              .replace(/\?/g, '[\\s\\S]?') + '$'
+              .replace(/\?/g, '[\\s\\S]?')
       try {
         reg.push(
           new RegExp(v)
@@ -429,9 +433,10 @@ FileData.getBaseUrl = async function(url){
   for(; i < length; i++) {
     let v = array[i]
     if(/(\*|\?)/.test(v)) break
-    baseUrl = path.resolve(baseUrl, v)
   }
 
+  baseUrl = path.resolve(baseUrl, array.slice(0, i).join('\\')) 
+  
   try {
     if(!(await FileData.isExist(baseUrl))) {
       FileData.warn(`${baseUrl}不存在`)
@@ -486,6 +491,25 @@ FileData.wordCount = function(url, data){ // 统计文件字符
   return new FileData(url, data)
 }
 ```
+
+***
+
+## 三、测试
+- 单个词测试
+
+![](./image/单个词测试.png)
+
+- 单字符测试
+
+![](./image/单字符测试.png)
+
+- 空文件测试
+
+![](./image/空文件测试.png)
+
+- 源文件测试
+
+![](./image/源文件测试.png)
 
 ***
 

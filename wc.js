@@ -5,6 +5,7 @@ const FileData = require('./lib/filedata')
 // FileData.readUrl(__dirname, { outOrder: ['-c', '-w'], readOrder: [] })
 
 order(function(url, read, output){
+  url = url.length ? url :[__dirname]
   FileData.readUrl(url, { outOrder: output, readOrder: read })
 })
 
