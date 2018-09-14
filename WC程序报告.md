@@ -92,7 +92,7 @@ wc.exe -s -a *.c
 
 ### 关键代码
 
-1. 入口文件：wc.js
+#### 入口文件：wc.js
 ```js
 const order = require('./lib/order')
 const FileData = require('./lib/filedata')
@@ -104,7 +104,7 @@ order(function(url, read, output){
 
 ***
 
-2. 命令分类函数所在的文件：order.js
+#### 命令分类函数所在的文件：order.js
 ```js
 function order(callback){
   let params = process.argv.slice(2), // 拿到控制台输入的命令
@@ -129,7 +129,7 @@ module.exports = order // 暴露函数
 
 ***
 
-3. 处理文件的函数在 filedata.js 下：
+#### 处理文件的函数在 filedata.js 下：
 ```js
 class FileData {
   constructor(url, data) {
@@ -198,13 +198,14 @@ class FileData {
         codeRow = 0,
 
         length = string.length,
-        i = 0, j = -1, 
+        i = 0, // 当前字符位置
+        j = -1, // 当行注释符位置
 
-        lastChat = '',
-        chat = '',
-        target = '',
-        targetList = ['`', `'`, `"`, `/*`, `*/`, `//`, '\n'],
-        rowChats = ''
+        lastChat = '', // 上一个字符
+        chat = '', // 当前字符
+        target = '', // 表示处于字符串状态或者注释状态，用于判断 "/* + */" 等情况是字符串还是代码
+        targetList = ['`', `'`, `"`, `/*`, `*/`, `//`, '\n'], // 影响注释行判断的字符
+        rowChats = '' // 当行字符串
 
     while(i < length){
       lastChat = chat
@@ -296,6 +297,195 @@ class FileData {
 - `rowCount`: 计算行数，命令 "-l"。
 - `rowComplexCount`: 计算空行/注释行/代码行，命令 "-a"。
 - `output`: 控制塔输出信息。
+
+静态属性：
+```js
+FileData.queue = [] // 单文件待读队列
+FileData.outOrder = [] // 输出命令队列
+FileData.readOrder = [] // 读取命令队列
+FileData.regExp = [] // 正则表达式队列
+```
+
+静态方法：
+- 读取路径信息入口
+```js
+FileData.readUrl = async function(url, 
+{ 
+  before = function(){}, 
+  after = function(){}, 
+  outOrder = [], 
+  readOrder = [] 
+}) {
+  before()
+  let start = new Date(), orderS = false
+  FileData.outOrder = outOrder
+  FileData.readOrder = readOrder
+  try {
+    if(typeof url === 'string') { // 字符串
+      url = [url]
+    }
+    if(FileData.hasOrder(FileData.readOrder, '-s')) {
+      url.length = 1
+      orderS = true
+
+      let { baseUrl, regExp } = await FileData.getBaseUrl(url[0])
+      FileData.makeRegExp(baseUrl + '\\' + regExp)
+      
+      if(!baseUrl) {
+        FileData.warn('无匹配文件')
+        return
+      }
+      url = [baseUrl]
+    }
+    await FileData.readFileArray(url)
+    orderS && FileData.selectQueue()
+    await FileData.readFileQueue()
+  } catch (e) {
+    throw e
+  }
+  
+  console.log(`\n- 运行时间：${(new Date() - start) / 1000} s`)
+  after()
+}
+```
+
+- 读取路径数组：
+```js
+FileData.readFileArray = async function (array){ // 读取文件数组
+  let i = array.length
+  try {
+    while(i--){
+      let url = array[i]
+      url = path.resolve(__dirname, '../', url)
+      
+      let isExist = await FileData.isExist(url) // 是否存在
+      if(isExist) {
+        await FileData.urlHandler(url)
+      } else {
+        FileData.warn(`${url.split('\\').pop()}文件不存在`)
+      }
+    }
+  } catch(e){
+    throw(e)
+  }
+}
+```
+
+- 判断路径是文件夹还是单文件：
+```js
+FileData.urlHandler = async function(url) { // 判断文件和文件夹
+  try {
+    let stats = await FileData._lstat(url)
+    if(stats.isDirectory()){ // 为文件夹
+      if(!FileData.hasOrder(FileData.readOrder, '-s')) {
+        FileData.warn(`${url.split('\\').pop()} 是非文件`)
+        return
+      }
+      let map = await FileData._readdir(url)
+      await FileData.readFileArray(map)
+    } else { // 为单文件
+      FileData.queue.push(url)
+    }  
+  } catch (e) {
+    throw e
+  }
+}
+```
+
+- 生成正则表达式：
+```js
+FileData.makeRegExp = function(string) {
+  reg = []
+  if(typeof string === 'string'){
+    string = [string]
+  } 
+  if(string instanceof Array) {
+    let i = string.length
+    while(i--){
+      let v = string[i].replace(/(\\|\/)/g, '\\\\')
+              .replace(/\*/g, '[\\s\\S]*')
+              .replace(/\?/g, '[\\s\\S]?') + '$'
+      try {
+        reg.push(
+          new RegExp(v)
+        )
+      } catch(e){
+        throw e
+      }
+    }
+  }
+  return FileData.regExp = reg
+}
+```
+
+- 当需要处理 '-s' 命令时，读取不含通配符的路径，缩小寻找范围：
+```js
+FileData.getBaseUrl = async function(url){
+  let baseUrl = path.resolve(__dirname, '../'),
+      array = url.replace(/\//g, '\\').split('\\'),
+      length = array.length,
+      i = 0
+
+  for(; i < length; i++) {
+    let v = array[i]
+    if(/(\*|\?)/.test(v)) break
+    baseUrl = path.resolve(baseUrl, v)
+  }
+
+  try {
+    if(!(await FileData.isExist(baseUrl))) {
+      FileData.warn(`${baseUrl}不存在`)
+      return {
+        baseUrl: '',
+        regExp: ''
+      }
+    }
+    return {
+      baseUrl: baseUrl,
+      regExp: array.slice(i).join('\\')
+    }
+  } catch(e){
+    throw e
+  }
+}
+```
+
+- 筛选需要读取的文件：
+```js
+FileData.selectQueue = function(){
+  let reg = FileData.regExp
+  return FileData.queue = FileData.queue.filter((e1)=>{
+    return reg.some((e2)=>{
+      return e2.test(e1)
+    })
+  })
+}
+```
+
+- 读取待读文件队列：
+```js
+FileData.readFileQueue = async function() {
+  try {
+    let queue = FileData.queue
+    let i = queue.length
+    while(i--){
+      let url = queue[i],
+          data = await FileData._readFile(url) // 读取单文件数据
+
+      FileData.wordCount(url, data) // 生成 FileData 实例
+    } 
+  } catch (e) {
+    throw e
+  } 
+}
+```
+
+- 生成 FileData 实例：
+```js
+FileData.wordCount = function(url, data){ // 统计文件字符
+  return new FileData(url, data)
+}
+```
 
 ***
 
