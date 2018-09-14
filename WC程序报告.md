@@ -513,6 +513,10 @@ FileData.wordCount = function(url, data){ // 统计文件字符
 
 ***
 
+## 四、界面功能
+![](./image/界面.png)
+
+***
 
 ## PSP
 | PSP2.1                                  | Personal Software Process Stages        | 预估耗时（分钟） | 实际耗时（分钟） |
