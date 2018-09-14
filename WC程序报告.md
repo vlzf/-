@@ -511,6 +511,10 @@ FileData.wordCount = function(url, data){ // 统计文件字符
 
 ![](https://github.com/vlzf/ruangong/raw/master/image/%E6%BA%90%E6%96%87%E4%BB%B6%E6%B5%8B%E8%AF%95.png)
 
+- 正则匹配
+
+![](https://github.com/vlzf/ruangong/raw/master/image/%E6%BA%90%E6%96%87%E4%BB%B6%E6%B5%8B%E8%AF%95.png)
+
 ***
 
 ## 四、界面功能
